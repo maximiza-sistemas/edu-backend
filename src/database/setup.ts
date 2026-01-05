@@ -1,11 +1,10 @@
 import { query, checkConnection, closePool } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use process.cwd() for compatibility with CommonJS output
+const getSchemaPath = () => join(process.cwd(), 'dist', 'database', 'schema.sql');
 
 async function setupDatabase() {
     console.log('🚀 Starting database setup...');
@@ -19,7 +18,7 @@ async function setupDatabase() {
     console.log('✅ Database connected');
 
     // Read and execute schema
-    const schemaPath = join(__dirname, 'schema.sql');
+    const schemaPath = getSchemaPath();
     const schema = readFileSync(schemaPath, 'utf-8');
 
     console.log('📦 Creating tables...');

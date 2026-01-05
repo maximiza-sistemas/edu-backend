@@ -37,7 +37,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         process.env.JWT_SECRET || 'secret',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+        { expiresIn: '24h' } // Fixed expiration for type safety
     );
 
     // Remove password_hash from response

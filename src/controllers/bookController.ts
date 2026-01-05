@@ -11,8 +11,8 @@ interface BookWithGroups extends Omit<Book, 'class_groups'> {
 export async function getBooks(req: Request, res: Response): Promise<void> {
     const filters: BookFilters = {
         search: req.query.search as string,
-        curriculum_component: req.query.curriculum_component as string,
-        class_group: req.query.class_group as string,
+        curriculum_component: req.query.curriculum_component as BookFilters['curriculum_component'],
+        class_group: req.query.class_group as BookFilters['class_group'],
         professor_id: req.query.professor_id as string,
         student_id: req.query.student_id as string,
         limit: Math.min(parseInt(req.query.limit as string) || 50, 100),
