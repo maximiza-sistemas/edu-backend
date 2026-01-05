@@ -17,7 +17,12 @@ const PORT = parseInt(process.env.PORT || '3001');
 
 // CORS - Allow frontend to access API
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'https://sistema-livros-maximiza-frontend-edu.gkgtsp.easypanel.host'
+    ],
     credentials: true
 }));
 
