@@ -9,7 +9,7 @@ import * as bookController from '../controllers/bookController.js';
 import * as assignmentController from '../controllers/assignmentController.js';
 import * as curriculumController from '../controllers/curriculumController.js';
 import * as seriesController from '../controllers/seriesController.js';
-import { uploadPdf, handlePdfUpload } from '../controllers/uploadController.js';
+import { uploadPdf, uploadImage, handlePdfUpload, handleImageUpload } from '../controllers/uploadController.js';
 
 const router = Router();
 
@@ -56,6 +56,7 @@ router.delete('/books/:id', authMiddleware, requireRole('admin'), asyncHandler(b
 
 // ============== Upload Routes ==============
 router.post('/upload/pdf', authMiddleware, requireRole('admin'), uploadPdf.single('pdf'), asyncHandler(handlePdfUpload));
+router.post('/upload/image', authMiddleware, requireRole('admin'), uploadImage.single('image'), asyncHandler(handleImageUpload));
 
 // ============== Assignment Routes ==============
 router.get('/assignments', authMiddleware, asyncHandler(assignmentController.getAssignments));
