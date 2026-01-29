@@ -9,14 +9,11 @@ COPY package*.json ./
 # Install all dependencies (including dev for build)
 RUN npm ci
 
-# Fix permissions for binaries
-RUN chmod +x node_modules/.bin/*
-
 # Copy source code
 COPY . .
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript using npx
+RUN npx tsc
 
 # Production stage
 FROM node:20-alpine AS runner
