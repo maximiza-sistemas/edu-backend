@@ -9,6 +9,9 @@ COPY package*.json ./
 # Install all dependencies (including dev for build)
 RUN npm ci
 
+# Fix permissions for binaries
+RUN chmod +x node_modules/.bin/*
+
 # Copy source code
 COPY . .
 
