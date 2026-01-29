@@ -3,10 +3,15 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), 'uploads');
+// Create uploads directory - use /data for production persistence (EasyPanel/Docker)
+// In production, /data is typically mounted as a persistent volume
+const isProduction = process.env.NODE_ENV === 'production';
+const baseDir = isProduction ? '/data' : process.cwd();
+const uploadsDir = path.join(baseDir, 'uploads');
 const pdfsDir = path.join(uploadsDir, 'pdfs');
 const imagesDir = path.join(uploadsDir, 'images');
+
+console.log(`📁 Uploads directory: ${uploadsDir} (production: ${isProduction})`);
 
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });

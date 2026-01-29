@@ -20,7 +20,12 @@ app.use(cors({
     origin: [
         'http://localhost:3000',
         'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
+        'http://localhost:5176',
         'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
+        'http://127.0.0.1:5175',
         'https://sistema-livros-maximiza-frontend-edu.gkgtsp.easypanel.host'
     ],
     credentials: true
@@ -40,7 +45,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ============== Static Files (Uploads) ==============
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Use /data for production persistence (EasyPanel/Docker volumes)
+const isProduction = process.env.NODE_ENV === 'production';
+const uploadsPath = isProduction ? '/data/uploads' : path.join(process.cwd(), 'uploads');
+console.log(`📁 Serving static files from: ${uploadsPath}`);
+app.use('/uploads', express.static(uploadsPath));
 
 // ============== Health Check ==============
 app.get('/api/health', async (_req, res) => {
