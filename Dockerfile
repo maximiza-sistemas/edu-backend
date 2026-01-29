@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build TypeScript using npx
-RUN npx tsc
+# Build TypeScript using node directly
+RUN node ./node_modules/typescript/bin/tsc
 
 # Production stage
 FROM node:20-alpine AS runner
