@@ -26,7 +26,8 @@ app.use(cors({
         'http://127.0.0.1:5173',
         'http://127.0.0.1:5174',
         'http://127.0.0.1:5175',
-        'https://sistema-livros-maximiza-frontend-edu.gkgtsp.easypanel.host'
+        'https://sistema-livros-maximiza-frontend-edu.gkgtsp.easypanel.host',
+        'https://sistema-livros-maximiza-edu-frontend.gkgtsp.easypanel.host'
     ],
     credentials: true
 }));
