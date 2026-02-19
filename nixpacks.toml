@@ -7,5 +7,8 @@ cmds = ["npm ci --include=dev"]
 [phases.build]
 cmds = ["chmod +x node_modules/.bin/* && ./node_modules/.bin/tsc"]
 
+[variables]
+NODE_ENV = "production"
+
 [start]
 cmd = "node dist/index.js"
