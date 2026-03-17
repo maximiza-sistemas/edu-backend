@@ -25,7 +25,8 @@ async function migrate() {
             'Artes',
             'Educação Física',
             'Filosofia',
-            'Sociologia'
+                        'Sociologia',
+            'Pensamento Computacional'
         ];
 
         for (const name of components) {

@@ -15,7 +15,8 @@ export const CURRICULUM_COMPONENTS = [
     'Artes',
     'Educação Física',
     'Filosofia',
-    'Sociologia'
+    'Sociologia',
+    'Pensamento Computacional'
 ] as const;
 
 export type CurriculumComponent = typeof CURRICULUM_COMPONENTS[number];
