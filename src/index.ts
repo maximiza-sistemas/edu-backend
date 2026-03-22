@@ -4,6 +4,7 @@ import path from 'path';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { checkConnection } from './config/database.js';
+import { ensureTables } from './database/migrate.js';
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -79,6 +80,10 @@ async function startServer() {
         process.exit(1);
     }
     console.log('✅ Database connected');
+
+    // Ensure all tables exist (non-destructive - preserves existing data)
+    await ensureTables();
+    console.log('✅ Database tables ensured');
 
     app.listen(PORT, () => {
         console.log(`

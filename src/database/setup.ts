@@ -1,11 +1,14 @@
 import { query, checkConnection, closePool } from '../config/database.js';
+import { ensureTables, isDatabaseEmpty } from './migrate.js';
 import bcrypt from 'bcryptjs';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
-// Use process.cwd() for compatibility with CommonJS output
-const getSchemaPath = () => join(process.cwd(), 'dist', 'database', 'schema.sql');
-
+/**
+ * Database setup script - SAFE version.
+ * 
+ * - Always ensures tables exist (non-destructive)
+ * - Only seeds demo data if the database is EMPTY (first-time setup)
+ * - Safe to run multiple times without data loss
+ */
 async function setupDatabase() {
     console.log('🚀 Starting database setup...');
 
@@ -17,16 +20,17 @@ async function setupDatabase() {
     }
     console.log('✅ Database connected');
 
-    // Read and execute schema
-    const schemaPath = getSchemaPath();
-    const schema = readFileSync(schemaPath, 'utf-8');
+    // Ensure tables exist (non-destructive - uses CREATE TABLE IF NOT EXISTS)
+    await ensureTables();
 
-    console.log('📦 Creating tables...');
-    await query(schema);
-    console.log('✅ Tables created');
-
-    // Seed demo data
-    await seedDemoData();
+    // Only seed demo data if database is empty (first-time setup)
+    const empty = await isDatabaseEmpty();
+    if (empty) {
+        console.log('📦 Database is empty - seeding demo data...');
+        await seedDemoData();
+    } else {
+        console.log('✅ Database already has data - skipping seed (data preserved)');
+    }
 
     console.log('🎉 Database setup complete!');
     await closePool();

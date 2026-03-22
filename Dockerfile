@@ -14,6 +14,8 @@ COPY . .
 
 # Build TypeScript using node directly
 RUN node ./node_modules/typescript/bin/tsc
+# Copy non-TS files that are needed at runtime
+RUN cp src/database/schema.sql dist/database/schema.sql
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -26,7 +28,7 @@ COPY package*.json ./
 # Install only production dependencies
 RUN npm ci --omit=dev
 
-# Copy built files from builder
+# Copy built files from builder (includes schema.sql)
 COPY --from=builder /app/dist ./dist
 
 # Create uploads directory

@@ -5,7 +5,7 @@ nixPkgs = ["nodejs_20"]
 cmds = ["npm ci --include=dev"]
 
 [phases.build]
-cmds = ["chmod +x node_modules/.bin/* && ./node_modules/.bin/tsc"]
+cmds = ["chmod +x node_modules/.bin/* && ./node_modules/.bin/tsc && cp src/database/schema.sql dist/database/schema.sql"]
 
 [variables]
 NODE_ENV = "production"
