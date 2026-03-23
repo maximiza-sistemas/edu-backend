@@ -4,7 +4,7 @@ import path from 'path';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { checkConnection } from './config/database.js';
-import { ensureTables } from './database/migrate.js';
+import { ensureTables, isDatabaseEmpty } from './database/migrate.js';
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -73,6 +73,11 @@ app.use(errorHandler);
 
 // ============== Start Server ==============
 async function startServer() {
+    // Log which database we're connecting to
+    const dbUrl = process.env.DATABASE_URL || 'not set';
+    const maskedUrl = dbUrl.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+    console.log(`🔗 DATABASE_URL: ${maskedUrl}`);
+
     // Check database connection
     const dbConnected = await checkConnection();
     if (!dbConnected) {
@@ -81,9 +86,18 @@ async function startServer() {
     }
     console.log('✅ Database connected');
 
-    // Ensure all tables exist (non-destructive - preserves existing data)
+    // Ensure all tables exist (non-destructive - uses embedded CREATE TABLE IF NOT EXISTS)
     await ensureTables();
     console.log('✅ Database tables ensured');
+
+    // Check if database has data (helps diagnose data loss)
+    const empty = await isDatabaseEmpty();
+    if (empty) {
+        console.warn('⚠️  WARNING: Database is EMPTY after migration - data may have been lost!');
+        console.warn('⚠️  This could mean the PostgreSQL volume is not persisting data.');
+    } else {
+        console.log('✅ Database has existing data - everything OK');
+    }
 
     app.listen(PORT, () => {
         console.log(`
