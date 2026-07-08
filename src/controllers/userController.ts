@@ -190,7 +190,7 @@ export async function getStudentsByProfessor(req: Request, res: Response): Promi
 export async function getUsersByRole(req: Request, res: Response): Promise<void> {
     const { role } = req.params;
 
-    if (!['admin', 'professor', 'student'].includes(role)) {
+    if (!['admin', 'professor', 'student', 'niveis'].includes(role)) {
         res.status(400).json({ error: 'Função inválida' });
         return;
     }
