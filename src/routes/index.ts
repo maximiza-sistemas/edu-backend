@@ -9,6 +9,7 @@ import * as bookController from '../controllers/bookController.js';
 import * as assignmentController from '../controllers/assignmentController.js';
 import * as curriculumController from '../controllers/curriculumController.js';
 import * as seriesController from '../controllers/seriesController.js';
+import * as levelController from '../controllers/levelController.js';
 import { uploadPdf, uploadImage, handlePdfUpload, handleImageUpload } from '../controllers/uploadController.js';
 
 const router = Router();
@@ -43,6 +44,13 @@ router.get('/series/:id', authMiddleware, asyncHandler(seriesController.getSerie
 router.post('/series', authMiddleware, requireRole('admin'), asyncHandler(seriesController.createSeries));
 router.put('/series/:id', authMiddleware, requireRole('admin'), asyncHandler(seriesController.updateSeries));
 router.delete('/series/:id', authMiddleware, requireRole('admin'), asyncHandler(seriesController.deleteSeries));
+
+// ============== Levels Routes ==============
+router.get('/levels', authMiddleware, asyncHandler(levelController.getAllLevels));
+router.get('/levels/:id', authMiddleware, asyncHandler(levelController.getLevelById));
+router.post('/levels', authMiddleware, requireRole('admin'), asyncHandler(levelController.createLevel));
+router.put('/levels/:id', authMiddleware, requireRole('admin'), asyncHandler(levelController.updateLevel));
+router.delete('/levels/:id', authMiddleware, requireRole('admin'), asyncHandler(levelController.deleteLevel));
 
 // ============== Book Routes ==============
 router.get('/books', authMiddleware, asyncHandler(bookController.getBooks));
