@@ -154,6 +154,17 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
     const data = req.body as UpdateBookRequest;
 
+    const levelProvided = data.level !== undefined;
+    const groupsProvided = data.class_groups !== undefined;
+    if (levelProvided && groupsProvided) {
+        const hasLevel = !!(data.level && data.level.trim());
+        const hasGroups = !!(data.class_groups && data.class_groups.length > 0);
+        if (hasLevel === hasGroups) {
+            res.status(400).json({ error: 'Selecione um nível OU uma ou mais turmas (exatamente um dos dois).' });
+            return;
+        }
+    }
+
     const book = await withTransaction(async (client) => {
         // Build dynamic update query
         const updates: string[] = [];
