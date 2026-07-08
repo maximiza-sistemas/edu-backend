@@ -1,5 +1,5 @@
 // User roles
-export type UserRole = 'admin' | 'professor' | 'student';
+export type UserRole = 'admin' | 'professor' | 'student' | 'niveis';
 
 // Book types (student vs professor material)
 export type BookType = 'student' | 'professor';
@@ -64,6 +64,7 @@ export interface Book {
     curriculum_component: CurriculumComponent;
     book_type: BookType;
     class_groups?: ClassGroup[];
+    level?: string;
     created_at: Date;
     updated_at: Date;
 }
@@ -114,6 +115,7 @@ export interface CreateBookRequest {
     curriculum_component: CurriculumComponent;
     book_type: BookType;
     class_groups: ClassGroup[];
+    level?: string | null;
 }
 
 export interface UpdateBookRequest {
@@ -125,6 +127,7 @@ export interface UpdateBookRequest {
     curriculum_component?: CurriculumComponent;
     book_type?: BookType;
     class_groups?: ClassGroup[];
+    level?: string | null;
 }
 
 export interface BookFilters {
@@ -133,6 +136,7 @@ export interface BookFilters {
     class_group?: ClassGroup | 'all';
     professor_id?: string | 'all';
     student_id?: string | 'all';
+    level?: string | 'all';
     limit?: number;
     offset?: number;
 }
