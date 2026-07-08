@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS book_class_groups (
 
 CREATE INDEX IF NOT EXISTS idx_book_class_groups_class ON book_class_groups(class_group);
 
+-- Levels table (paralelo às séries, para o mundo dos níveis)
+CREATE TABLE IF NOT EXISTS levels (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Book assignments
 CREATE TABLE IF NOT EXISTS book_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,6 +92,14 @@ CREATE TRIGGER update_books_updated_at
     BEFORE UPDATE ON books
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Coluna de nível no livro (NULL = livro do mundo dos anos)
+ALTER TABLE books ADD COLUMN IF NOT EXISTS level VARCHAR(100);
+
+-- Ampliar perfis permitidos para incluir 'niveis' (recria a regra, não apaga dados)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+    CHECK (role IN ('admin', 'professor', 'student', 'niveis'));
 `;
 
 /**
