@@ -55,6 +55,7 @@ router.delete('/levels/:id', authMiddleware, requireRole('admin'), asyncHandler(
 // ============== Book Routes ==============
 router.get('/books', authMiddleware, asyncHandler(bookController.getBooks));
 router.get('/books/student/:userId', authMiddleware, asyncHandler(bookController.getBooksByStudent));
+router.get('/books/levels', authMiddleware, asyncHandler(bookController.getLevelBooks));
 router.get('/books/component/:component', authMiddleware, asyncHandler(bookController.getBooksByComponent));
 router.get('/books/class/:classGroup', authMiddleware, asyncHandler(bookController.getBooksByClass));
 router.get('/books/:id', authMiddleware, asyncHandler(bookController.getBookById));

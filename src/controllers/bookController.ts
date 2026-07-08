@@ -60,8 +60,8 @@ export async function getBooks(req: Request, res: Response): Promise<void> {
     // Get books with class groups
     params.push(filters.limit, filters.offset);
     const result = await query<Book>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, 
-                b.curriculum_component, b.book_type, b.created_at, b.updated_at,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+                b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
                      FROM book_class_groups bcg WHERE bcg.book_id = b.id),
@@ -87,7 +87,7 @@ export async function getBookById(req: Request, res: Response): Promise<void> {
 
     const result = await query<BookWithGroups>(
         `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
-                b.curriculum_component, b.book_type, b.created_at, b.updated_at,
+                b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
                      FROM book_class_groups bcg WHERE bcg.book_id = b.id),
@@ -114,27 +114,36 @@ export async function createBook(req: Request, res: Response): Promise<void> {
         return;
     }
 
+    const hasLevel = !!(data.level && data.level.trim());
+    const hasGroups = !!(data.class_groups && data.class_groups.length > 0);
+
+    if (hasLevel === hasGroups) {
+        res.status(400).json({ error: 'Selecione um nível OU uma ou mais turmas (exatamente um dos dois).' });
+        return;
+    }
+
+    const level = hasLevel ? data.level!.trim() : null;
+    const classGroups = hasLevel ? [] : data.class_groups;
+
     const book = await withTransaction(async (client) => {
-        // Insert book
         const bookResult = await client.query<Book>(
-            `INSERT INTO books (title, author, description, cover_url, pdf_url, curriculum_component, book_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO books (title, author, description, cover_url, pdf_url, curriculum_component, book_type, level)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [data.title, data.author, data.description || '', data.cover_url || '', data.pdf_url || null, data.curriculum_component, data.book_type || 'student']
+            [data.title, data.author, data.description || '', data.cover_url || '', data.pdf_url || null, data.curriculum_component, data.book_type || 'student', level]
         );
 
         const newBook = bookResult.rows[0];
 
-        // Insert class groups
-        if (data.class_groups && data.class_groups.length > 0) {
-            const values = data.class_groups.map((_, i) => `($1, $${i + 2})`).join(', ');
+        if (classGroups.length > 0) {
+            const values = classGroups.map((_, i) => `($1, $${i + 2})`).join(', ');
             await client.query(
                 `INSERT INTO book_class_groups (book_id, class_group) VALUES ${values}`,
-                [newBook.id, ...data.class_groups]
+                [newBook.id, ...classGroups]
             );
         }
 
-        return { ...newBook, class_groups: data.class_groups || [] };
+        return { ...newBook, class_groups: classGroups };
     });
 
     res.status(201).json(book);
@@ -186,6 +195,12 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
             params.push(data.book_type);
         }
 
+        if (data.level !== undefined) {
+            const lvl = data.level && data.level.trim() ? data.level.trim() : null;
+            updates.push(`level = $${paramIndex++}`);
+            params.push(lvl);
+        }
+
         let updatedBook: Book;
 
         if (updates.length > 0) {
@@ -210,15 +225,19 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
             updatedBook = result.rows[0];
         }
 
-        // Update class groups if provided
-        if (data.class_groups !== undefined) {
+        // Exclusividade: se veio um nível não-nulo, zera as turmas
+        const clearingGroupsForLevel = data.level !== undefined && !!(data.level && data.level.trim());
+
+        // Update class groups if provided (ou limpar se virou livro de nível)
+        if (data.class_groups !== undefined || clearingGroupsForLevel) {
+            const groups = clearingGroupsForLevel ? [] : (data.class_groups || []);
             await client.query('DELETE FROM book_class_groups WHERE book_id = $1', [id]);
 
-            if (data.class_groups.length > 0) {
-                const values = data.class_groups.map((_, i) => `($1, $${i + 2})`).join(', ');
+            if (groups.length > 0) {
+                const values = groups.map((_, i) => `($1, $${i + 2})`).join(', ');
                 await client.query(
                     `INSERT INTO book_class_groups (book_id, class_group) VALUES ${values}`,
-                    [id, ...data.class_groups]
+                    [id, ...groups]
                 );
             }
         }
@@ -258,7 +277,7 @@ export async function getBooksByComponent(req: Request, res: Response): Promise<
 
     const result = await query<BookWithGroups>(
         `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
-                b.curriculum_component, b.book_type, b.created_at, b.updated_at,
+                b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
                      FROM book_class_groups bcg WHERE bcg.book_id = b.id),
@@ -278,7 +297,7 @@ export async function getBooksByClass(req: Request, res: Response): Promise<void
 
     const result = await query<BookWithGroups>(
         `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
-                b.curriculum_component, b.book_type, b.created_at, b.updated_at,
+                b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
                      FROM book_class_groups bcg WHERE bcg.book_id = b.id),
@@ -288,6 +307,24 @@ export async function getBooksByClass(req: Request, res: Response): Promise<void
          WHERE EXISTS (SELECT 1 FROM book_class_groups bcg WHERE bcg.book_id = b.id AND bcg.class_group = $1)
          ORDER BY b.title ASC`,
         [classGroup]
+    );
+
+    res.json(result.rows);
+}
+
+// Get all books that belong to the "levels world" (level IS NOT NULL)
+export async function getLevelBooks(_req: Request, res: Response): Promise<void> {
+    const result = await query<Book>(
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+                b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
+                COALESCE(
+                    (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
+                     FROM book_class_groups bcg WHERE bcg.book_id = b.id),
+                    ARRAY[]::varchar[]
+                ) as class_groups
+         FROM books b
+         WHERE b.level IS NOT NULL
+         ORDER BY b.level ASC, b.title ASC`
     );
 
     res.json(result.rows);
@@ -319,7 +356,7 @@ export async function getBooksByStudent(req: Request, res: Response): Promise<vo
     // Get books for that class - ONLY STUDENT BOOKS
     const result = await query<BookWithGroups>(
         `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
-                b.curriculum_component, b.book_type, b.created_at, b.updated_at,
+                b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
                      FROM book_class_groups bcg WHERE bcg.book_id = b.id),
