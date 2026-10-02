@@ -1,9 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 
 // Error interface for typed errors
 interface AppError extends Error {
     statusCode?: number;
     code?: string;
+}
+
+const MULTER_ERROR_MESSAGES: Partial<Record<multer.ErrorCode, string>> = {
+    LIMIT_FILE_COUNT: 'Envie apenas um arquivo por vez',
+    LIMIT_UNEXPECTED_FILE: 'Campo de arquivo inesperado'
+};
+
+// Upload routes store their size limit in res.locals.uploadLimitMb (see uploadController)
+function handleMulterError(err: multer.MulterError, res: Response): void {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        const limitMb: unknown = res.locals.uploadLimitMb;
+        res.status(413).json({
+            error: typeof limitMb === 'number'
+                ? `Arquivo excede o limite de ${limitMb}MB`
+                : 'Arquivo excede o tamanho máximo permitido'
+        });
+        return;
+    }
+
+    res.status(400).json({ error: MULTER_ERROR_MESSAGES[err.code] || 'Envio de arquivo inválido' });
 }
 
 // Global error handler
@@ -16,6 +37,12 @@ export function errorHandler(
     console.error('Error:', err.message);
     console.error('Stack:', err.stack);
 
+    // File upload errors (size limit, unexpected field)
+    if (err instanceof multer.MulterError) {
+        handleMulterError(err, res);
+        return;
+    }
+
     // PostgreSQL specific errors
     if (err.code) {
         switch (err.code) {
@@ -27,6 +54,9 @@ export function errorHandler(
                 return;
             case '22P02': // Invalid text representation
                 res.status(400).json({ error: 'Formato de dados inválido' });
+                return;
+            case '22001': // Value too long for the column
+                res.status(400).json({ error: 'Um dos campos excede o tamanho máximo permitido' });
                 return;
         }
     }

@@ -100,6 +100,14 @@ ALTER TABLE books ADD COLUMN IF NOT EXISTS level VARCHAR(100);
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
     CHECK (role IN ('admin', 'professor', 'student', 'niveis'));
+
+-- Formato do material: livro em PDF (pdf_url), vídeo ou apresentação PowerPoint (media_url).
+-- Livros existentes recebem 'pdf' pelo DEFAULT.
+ALTER TABLE books ADD COLUMN IF NOT EXISTS content_type VARCHAR(20) NOT NULL DEFAULT 'pdf';
+ALTER TABLE books ADD COLUMN IF NOT EXISTS media_url VARCHAR(1024);
+ALTER TABLE books DROP CONSTRAINT IF EXISTS books_content_type_check;
+ALTER TABLE books ADD CONSTRAINT books_content_type_check
+    CHECK (content_type IN ('pdf', 'video', 'pptx'));
 `;
 
 /**

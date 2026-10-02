@@ -52,7 +52,10 @@ app.use(limiter);
 const isProduction = process.env.NODE_ENV === 'production';
 const uploadsPath = isProduction ? '/data/uploads' : path.join(process.cwd(), 'uploads');
 console.log(`📁 Serving static files from: ${uploadsPath}`);
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', express.static(uploadsPath, {
+    // Uploaded files must be used as their declared type, never sniffed into HTML/script
+    setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff')
+}));
 
 // ============== Health Check ==============
 app.get('/api/health', async (_req, res) => {
@@ -99,7 +102,7 @@ async function startServer() {
         console.log('✅ Database has existing data - everything OK');
     }
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`
 🚀 Educação Maxi API Server running!
    
@@ -109,6 +112,8 @@ async function startServer() {
    Environment: ${process.env.NODE_ENV || 'development'}
         `);
     });
+    // Large video uploads on slow links take longer than Node's 5-minute default
+    server.requestTimeout = 30 * 60 * 1000;
 }
 
 startServer().catch((err) => {

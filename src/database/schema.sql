@@ -86,3 +86,11 @@ CREATE TRIGGER update_books_updated_at
     BEFORE UPDATE ON books
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Material format: PDF book (pdf_url), video or PowerPoint presentation (media_url).
+-- Existing books get 'pdf' from the DEFAULT.
+ALTER TABLE books ADD COLUMN IF NOT EXISTS content_type VARCHAR(20) NOT NULL DEFAULT 'pdf';
+ALTER TABLE books ADD COLUMN IF NOT EXISTS media_url VARCHAR(1024);
+ALTER TABLE books DROP CONSTRAINT IF EXISTS books_content_type_check;
+ALTER TABLE books ADD CONSTRAINT books_content_type_check
+    CHECK (content_type IN ('pdf', 'video', 'pptx'));

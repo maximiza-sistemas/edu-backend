@@ -4,6 +4,9 @@ export type UserRole = 'admin' | 'professor' | 'student' | 'niveis';
 // Book types (student vs professor material)
 export type BookType = 'student' | 'professor';
 
+// Material format: PDF book, video (upload or YouTube/Vimeo link) or PowerPoint presentation
+export type ContentType = 'pdf' | 'video' | 'pptx';
+
 // Curriculum components (matching frontend)
 export const CURRICULUM_COMPONENTS = [
     'Matemática',
@@ -60,7 +63,9 @@ export interface Book {
     author: string;
     description: string;
     cover_url: string;
-    pdf_url?: string;
+    pdf_url?: string | null;
+    content_type: ContentType;
+    media_url: string | null;
     curriculum_component: CurriculumComponent;
     book_type: BookType;
     class_groups?: ClassGroup[];
@@ -111,7 +116,9 @@ export interface CreateBookRequest {
     author: string;
     description: string;
     cover_url: string;
-    pdf_url?: string;
+    pdf_url?: string | null;
+    content_type?: ContentType;
+    media_url?: string | null;
     curriculum_component: CurriculumComponent;
     book_type: BookType;
     class_groups: ClassGroup[];
@@ -123,7 +130,9 @@ export interface UpdateBookRequest {
     author?: string;
     description?: string;
     cover_url?: string;
-    pdf_url?: string;
+    pdf_url?: string | null;
+    content_type?: ContentType;
+    media_url?: string | null;
     curriculum_component?: CurriculumComponent;
     book_type?: BookType;
     class_groups?: ClassGroup[];

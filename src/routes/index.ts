@@ -10,7 +10,16 @@ import * as assignmentController from '../controllers/assignmentController.js';
 import * as curriculumController from '../controllers/curriculumController.js';
 import * as seriesController from '../controllers/seriesController.js';
 import * as levelController from '../controllers/levelController.js';
-import { uploadPdf, uploadImage, handlePdfUpload, handleImageUpload } from '../controllers/uploadController.js';
+import {
+    uploadPdf,
+    uploadImage,
+    uploadVideo,
+    uploadPresentation,
+    handlePdfUpload,
+    handleImageUpload,
+    handleVideoUpload,
+    handlePresentationUpload
+} from '../controllers/uploadController.js';
 
 const router = Router();
 
@@ -66,6 +75,8 @@ router.delete('/books/:id', authMiddleware, requireRole('admin'), asyncHandler(b
 // ============== Upload Routes ==============
 router.post('/upload/pdf', authMiddleware, requireRole('admin'), uploadPdf.single('pdf'), asyncHandler(handlePdfUpload));
 router.post('/upload/image', authMiddleware, requireRole('admin'), uploadImage.single('image'), asyncHandler(handleImageUpload));
+router.post('/upload/video', authMiddleware, requireRole('admin'), uploadVideo.single('video'), asyncHandler(handleVideoUpload));
+router.post('/upload/presentation', authMiddleware, requireRole('admin'), uploadPresentation.single('presentation'), asyncHandler(handlePresentationUpload));
 
 // ============== Assignment Routes ==============
 router.get('/assignments', authMiddleware, asyncHandler(assignmentController.getAssignments));
