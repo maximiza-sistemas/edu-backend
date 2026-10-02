@@ -20,6 +20,15 @@ import {
     handleVideoUpload,
     handlePresentationUpload
 } from '../controllers/uploadController.js';
+import {
+    chunkUploadLimiter,
+    requireChunkSession,
+    readChunkBody,
+    initChunkedUpload,
+    receiveChunk,
+    completeChunkedUpload,
+    cancelChunkedUpload
+} from '../controllers/chunkedUploadController.js';
 
 const router = Router();
 
@@ -77,6 +86,11 @@ router.post('/upload/pdf', authMiddleware, requireRole('admin'), uploadPdf.singl
 router.post('/upload/image', authMiddleware, requireRole('admin'), uploadImage.single('image'), asyncHandler(handleImageUpload));
 router.post('/upload/video', authMiddleware, requireRole('admin'), uploadVideo.single('video'), asyncHandler(handleVideoUpload));
 router.post('/upload/presentation', authMiddleware, requireRole('admin'), uploadPresentation.single('presentation'), asyncHandler(handlePresentationUpload));
+// Chunked uploads: large files sent as small requests that each finish well within the proxy timeout
+router.post('/upload/chunked/init', authMiddleware, requireRole('admin'), asyncHandler(initChunkedUpload));
+router.put('/upload/chunked/:uploadId', authMiddleware, requireRole('admin'), chunkUploadLimiter, requireChunkSession, readChunkBody, asyncHandler(receiveChunk));
+router.post('/upload/chunked/:uploadId/complete', authMiddleware, requireRole('admin'), asyncHandler(completeChunkedUpload));
+router.delete('/upload/chunked/:uploadId', authMiddleware, requireRole('admin'), asyncHandler(cancelChunkedUpload));
 
 // ============== Assignment Routes ==============
 router.get('/assignments', authMiddleware, asyncHandler(assignmentController.getAssignments));

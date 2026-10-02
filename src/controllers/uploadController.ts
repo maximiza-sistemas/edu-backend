@@ -12,6 +12,8 @@ export const MAX_FILE_SIZE_MB = 50;
 export const MAX_VIDEO_SIZE_MB = 500;
 // The free Office Online viewer only renders PowerPoint files up to 10MB
 export const MAX_PRESENTATION_SIZE_MB = 10;
+export const VIDEO_REJECT_MESSAGE = 'Formato de vídeo não suportado. Envie um arquivo MP4, WebM, OGV ou M4V.';
+export const PRESENTATION_REJECT_MESSAGE = 'Formato de apresentação não suportado. Envie um arquivo PowerPoint (.pptx ou .ppt).';
 const BYTES_PER_MB = 1024 * 1024;
 // Temporary files older than this are leftovers of a crash (uploads time out after 30 minutes)
 const STALE_TEMP_UPLOAD_MS = 2 * 60 * 60 * 1000;
@@ -49,12 +51,12 @@ function invalidFileError(message: string): Error {
     return statusError(400, message);
 }
 
-function createUniqueSuffix(): string {
+export function createUniqueSuffix(): string {
     return Date.now() + '-' + Math.round(Math.random() * 1E9);
 }
 
 // Deleting a file that is already gone is not an error; other failures are only logged
-async function removeFile(filePath: string): Promise<void> {
+export async function removeFile(filePath: string): Promise<void> {
     try {
         await fs.promises.unlink(filePath);
     } catch (error) {
@@ -209,8 +211,18 @@ async function removeStaleTempUploads(dir: string): Promise<void> {
     }
 }
 
-void removeStaleTempUploads(videosDir);
-void removeStaleTempUploads(presentationsDir);
+/** Removes temporary files left behind by a stopped process (runs at startup and periodically). */
+export async function removeStaleMediaTempUploads(): Promise<void> {
+    await removeStaleTempUploads(videosDir);
+    await removeStaleTempUploads(presentationsDir);
+}
+
+void removeStaleMediaTempUploads();
+
+/** Folder that stores uploaded videos or presentations. */
+export function getMediaUploadDir(kind: 'video' | 'presentation'): string {
+    return kind === 'video' ? videosDir : presentationsDir;
+}
 
 // Each media type gets its own multer instance, so file types and size limits never leak between routes
 function createMediaUpload({ dir, maxSizeMb, isAllowed, rejectMessage }: MediaUploadOptions): SingleFileUpload {
@@ -236,14 +248,14 @@ export const uploadVideo = createMediaUpload({
     dir: videosDir,
     maxSizeMb: MAX_VIDEO_SIZE_MB,
     isAllowed: isAllowedVideoUpload,
-    rejectMessage: 'Formato de vídeo não suportado. Envie um arquivo MP4, WebM, OGV ou M4V.'
+    rejectMessage: VIDEO_REJECT_MESSAGE
 });
 
 export const uploadPresentation = createMediaUpload({
     dir: presentationsDir,
     maxSizeMb: MAX_PRESENTATION_SIZE_MB,
     isAllowed: isAllowedPresentationUpload,
-    rejectMessage: 'Formato de apresentação não suportado. Envie um arquivo PowerPoint (.pptx ou .ppt).'
+    rejectMessage: PRESENTATION_REJECT_MESSAGE
 });
 
 // Upload PDF endpoint handler

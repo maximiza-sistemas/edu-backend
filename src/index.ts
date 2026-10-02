@@ -7,6 +7,7 @@ import { checkConnection } from './config/database.js';
 import { ensureTables, isDatabaseEmpty } from './database/migrate.js';
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { isChunkUploadRequest } from './utils/chunkedUploads.js';
 
 // Load environment variables
 dotenv.config();
@@ -43,7 +44,9 @@ const limiter = rateLimit({
     max: 1000, // Limit each IP to 1000 requests per windowMs
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Muitas requisições, tente novamente mais tarde.' }
+    message: { error: 'Muitas requisições, tente novamente mais tarde.' },
+    // A 500MB video is ~125 chunk requests; they have their own per-admin limiter (chunkedUploadController)
+    skip: (req) => isChunkUploadRequest(req.method, req.path)
 });
 app.use(limiter);
 
