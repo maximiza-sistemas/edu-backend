@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import { query } from '../config/database.js';
-import { BookAssignment, CreateAssignmentRequest, UpdateAssignmentRequest } from '../types/index.js';
+import { BookAssignment, ContentType, CreateAssignmentRequest, UpdateAssignmentRequest } from '../types/index.js';
 
 // Extended assignment with book and user details
 interface AssignmentWithDetails extends BookAssignment {
     book_title?: string;
+    content_type?: ContentType;
+    media_url?: string | null;
+    pdf_url?: string | null;
     user_name?: string;
     user_email?: string;
 }
@@ -37,7 +40,8 @@ export async function getAssignments(req: Request, res: Response): Promise<void>
     params.push(limit, offset);
     const result = await query<AssignmentWithDetails>(
         `SELECT ba.id, ba.book_id, ba.user_id, ba.assigned_at, ba.progress,
-                b.title as book_title, u.name as user_name, u.email as user_email
+                b.title as book_title, b.content_type, b.media_url, b.pdf_url,
+                u.name as user_name, u.email as user_email
          FROM book_assignments ba
          JOIN books b ON ba.book_id = b.id
          JOIN users u ON ba.user_id = u.id
@@ -61,7 +65,8 @@ export async function getAssignmentById(req: Request, res: Response): Promise<vo
 
     const result = await query<AssignmentWithDetails>(
         `SELECT ba.id, ba.book_id, ba.user_id, ba.assigned_at, ba.progress,
-                b.title as book_title, u.name as user_name, u.email as user_email
+                b.title as book_title, b.content_type, b.media_url, b.pdf_url,
+                u.name as user_name, u.email as user_email
          FROM book_assignments ba
          JOIN books b ON ba.book_id = b.id
          JOIN users u ON ba.user_id = u.id
@@ -176,7 +181,8 @@ export async function getAssignmentsByUser(req: Request, res: Response): Promise
 
     const result = await query<AssignmentWithDetails>(
         `SELECT ba.id, ba.book_id, ba.user_id, ba.assigned_at, ba.progress,
-                b.title as book_title, b.author, b.cover_url, b.curriculum_component
+                b.title as book_title, b.author, b.cover_url, b.curriculum_component,
+                b.content_type, b.media_url, b.pdf_url
          FROM book_assignments ba
          JOIN books b ON ba.book_id = b.id
          WHERE ba.user_id = $1

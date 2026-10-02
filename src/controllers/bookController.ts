@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
+import { PoolClient } from 'pg';
 import { query, withTransaction } from '../config/database.js';
 import { Book, CreateBookRequest, UpdateBookRequest, BookFilters, ClassGroup } from '../types/index.js';
+import { normalizeBookMedia } from '../utils/mediaValidation.js';
+import { removeUnreferencedMedia } from './uploadController.js';
 
 // Extended book type with class_groups array
 interface BookWithGroups extends Omit<Book, 'class_groups'> {
@@ -60,7 +63,7 @@ export async function getBooks(req: Request, res: Response): Promise<void> {
     // Get books with class groups
     params.push(filters.limit, filters.offset);
     const result = await query<Book>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, b.content_type, b.media_url,
                 b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
@@ -68,7 +71,7 @@ export async function getBooks(req: Request, res: Response): Promise<void> {
                     ARRAY[]::varchar[]
                 ) as class_groups
          FROM books b${whereClause}
-         ORDER BY b.title ASC
+         ORDER BY b.title ASC, b.id ASC
          LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
         params
     );
@@ -86,7 +89,7 @@ export async function getBookById(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
 
     const result = await query<BookWithGroups>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, b.content_type, b.media_url,
                 b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
@@ -122,15 +125,21 @@ export async function createBook(req: Request, res: Response): Promise<void> {
         return;
     }
 
+    const media = normalizeBookMedia(data.content_type ?? 'pdf', data.media_url, data.pdf_url);
+    if (!media.ok) {
+        res.status(400).json({ error: media.error });
+        return;
+    }
+
     const level = hasLevel ? data.level!.trim() : null;
     const classGroups = hasLevel ? [] : data.class_groups;
 
     const book = await withTransaction(async (client) => {
         const bookResult = await client.query<Book>(
-            `INSERT INTO books (title, author, description, cover_url, pdf_url, curriculum_component, book_type, level)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO books (title, author, description, cover_url, pdf_url, content_type, media_url, curriculum_component, book_type, level)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING *`,
-            [data.title, data.author, data.description || '', data.cover_url || '', data.pdf_url || null, data.curriculum_component, data.book_type || 'student', level]
+            [data.title, data.author, data.description || '', data.cover_url || '', media.pdf_url, media.content_type, media.media_url, data.curriculum_component, data.book_type || 'student', level]
         );
 
         const newBook = bookResult.rows[0];
@@ -149,6 +158,42 @@ export async function createBook(req: Request, res: Response): Promise<void> {
     res.status(201).json(book);
 }
 
+type BookMedia = Pick<Book, 'content_type' | 'media_url'> & { pdf_url: string | null };
+
+interface MediaUpdate {
+    media: BookMedia;
+    previousMediaUrl: string | null;
+}
+
+// Fields that were not sent keep their stored value; the source of the other formats is cleared.
+// A stored media_url never fits another format, so it is dropped when only content_type changes.
+async function resolveMediaUpdate(client: PoolClient, id: string, data: UpdateBookRequest): Promise<MediaUpdate> {
+    const current = await client.query<BookMedia>(
+        'SELECT content_type, media_url, pdf_url FROM books WHERE id = $1 FOR UPDATE',
+        [id]
+    );
+    if (current.rows.length === 0) {
+        throw { statusCode: 404, message: 'Livro não encontrado' };
+    }
+
+    const stored = current.rows[0];
+    const contentType = data.content_type ?? stored.content_type;
+    const keptMediaUrl = contentType === stored.content_type ? stored.media_url : null;
+    const media = normalizeBookMedia(
+        contentType,
+        data.media_url !== undefined ? data.media_url : keptMediaUrl,
+        data.pdf_url !== undefined ? data.pdf_url : stored.pdf_url
+    );
+    if (!media.ok) {
+        throw { statusCode: 400, message: media.error };
+    }
+
+    return {
+        media: { content_type: media.content_type, media_url: media.media_url, pdf_url: media.pdf_url },
+        previousMediaUrl: stored.media_url
+    };
+}
+
 // Update book
 export async function updateBook(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
@@ -164,6 +209,9 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
             return;
         }
     }
+
+    const mediaProvided = data.content_type !== undefined || data.media_url !== undefined || data.pdf_url !== undefined;
+    let previousMediaUrl: string | null = null;
 
     const book = await withTransaction(async (client) => {
         // Build dynamic update query
@@ -191,9 +239,15 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
             params.push(data.cover_url);
         }
 
-        if (data.pdf_url !== undefined) {
+        if (mediaProvided) {
+            const { media, previousMediaUrl: storedMediaUrl } = await resolveMediaUpdate(client, id, data);
+            previousMediaUrl = storedMediaUrl;
+            updates.push(`content_type = $${paramIndex++}`);
+            params.push(media.content_type);
+            updates.push(`media_url = $${paramIndex++}`);
+            params.push(media.media_url);
             updates.push(`pdf_url = $${paramIndex++}`);
-            params.push(data.pdf_url);
+            params.push(media.pdf_url);
         }
 
         if (data.curriculum_component !== undefined) {
@@ -265,6 +319,11 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
         };
     });
 
+    // Only after the commit: the replaced or cleared file is deleted if no other material uses it
+    if (previousMediaUrl && previousMediaUrl !== book.media_url) {
+        await removeUnreferencedMedia([previousMediaUrl]);
+    }
+
     res.json(book);
 }
 
@@ -272,12 +331,15 @@ export async function updateBook(req: Request, res: Response): Promise<void> {
 export async function deleteBook(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
 
-    const result = await query('DELETE FROM books WHERE id = $1 RETURNING id', [id]);
+    const result = await query<Pick<Book, 'id' | 'media_url'>>('DELETE FROM books WHERE id = $1 RETURNING id, media_url', [id]);
 
     if (result.rows.length === 0) {
         res.status(404).json({ error: 'Livro não encontrado' });
         return;
     }
+
+    // The DELETE has committed (single statement); the file goes too unless another material uses it
+    await removeUnreferencedMedia([result.rows[0].media_url]);
 
     res.json({ message: 'Livro deletado com sucesso' });
 }
@@ -287,7 +349,7 @@ export async function getBooksByComponent(req: Request, res: Response): Promise<
     const { component } = req.params;
 
     const result = await query<BookWithGroups>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, b.content_type, b.media_url,
                 b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
@@ -295,7 +357,7 @@ export async function getBooksByComponent(req: Request, res: Response): Promise<
                     ARRAY[]::varchar[]
                 ) as class_groups
          FROM books b WHERE b.curriculum_component = $1
-         ORDER BY b.title ASC`,
+         ORDER BY b.title ASC, b.id ASC`,
         [component]
     );
 
@@ -307,7 +369,7 @@ export async function getBooksByClass(req: Request, res: Response): Promise<void
     const { classGroup } = req.params;
 
     const result = await query<BookWithGroups>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, b.content_type, b.media_url,
                 b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
@@ -316,7 +378,7 @@ export async function getBooksByClass(req: Request, res: Response): Promise<void
                 ) as class_groups
          FROM books b
          WHERE EXISTS (SELECT 1 FROM book_class_groups bcg WHERE bcg.book_id = b.id AND bcg.class_group = $1)
-         ORDER BY b.title ASC`,
+         ORDER BY b.title ASC, b.id ASC`,
         [classGroup]
     );
 
@@ -326,7 +388,7 @@ export async function getBooksByClass(req: Request, res: Response): Promise<void
 // Get all books that belong to the "levels world" (level IS NOT NULL)
 export async function getLevelBooks(_req: Request, res: Response): Promise<void> {
     const result = await query<Book>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, b.content_type, b.media_url,
                 b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
@@ -335,7 +397,7 @@ export async function getLevelBooks(_req: Request, res: Response): Promise<void>
                 ) as class_groups
          FROM books b
          WHERE b.level IS NOT NULL
-         ORDER BY b.level ASC, b.title ASC`
+         ORDER BY b.level ASC, b.title ASC, b.id ASC`
     );
 
     res.json(result.rows);
@@ -366,7 +428,7 @@ export async function getBooksByStudent(req: Request, res: Response): Promise<vo
 
     // Get books for that class - ONLY STUDENT BOOKS
     const result = await query<BookWithGroups>(
-        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url,
+        `SELECT b.id, b.title, b.author, b.description, b.cover_url, b.pdf_url, b.content_type, b.media_url,
                 b.curriculum_component, b.book_type, b.level, b.created_at, b.updated_at,
                 COALESCE(
                     (SELECT array_agg(bcg.class_group ORDER BY bcg.class_group)
@@ -376,7 +438,7 @@ export async function getBooksByStudent(req: Request, res: Response): Promise<vo
          FROM books b
          WHERE b.book_type = 'student'
            AND EXISTS (SELECT 1 FROM book_class_groups bcg WHERE bcg.book_id = b.id AND bcg.class_group = $1)
-         ORDER BY b.title ASC`,
+         ORDER BY b.title ASC, b.id ASC`,
         [classGroup]
     );
 
