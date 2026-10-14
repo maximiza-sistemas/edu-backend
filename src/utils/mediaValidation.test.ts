@@ -236,11 +236,12 @@ describe('normalizeBookMedia', () => {
             );
         });
 
-        it('stores a missing or empty pdf_url as null', () => {
-            const expected = { ok: true, content_type: 'pdf', media_url: null, pdf_url: null };
+        it('requires a pdf_url', () => {
+            const expected = { ok: false, error: MEDIA_ERRORS.missingPdf };
             assert.deepEqual(normalizeBookMedia('pdf', undefined, undefined), expected);
             assert.deepEqual(normalizeBookMedia('pdf', null, null), expected);
             assert.deepEqual(normalizeBookMedia('pdf', '', ''), expected);
+            assert.deepEqual(normalizeBookMedia('pdf', `https://youtu.be/${YOUTUBE_ID}`, '   '), expected);
         });
 
         it('rejects a non-string pdf_url', () => {
@@ -278,8 +279,8 @@ describe('normalizeBookMedia', () => {
             );
         });
 
-        it('treats a missing or blank media_url as no media yet', () => {
-            const expected = { ok: true, content_type: 'video', media_url: null, pdf_url: null };
+        it('requires a file or link', () => {
+            const expected = { ok: false, error: MEDIA_ERRORS.missingVideo };
             assert.deepEqual(normalizeBookMedia('video', undefined, undefined), expected);
             assert.deepEqual(normalizeBookMedia('video', null, '/uploads/pdfs/pdf-1.pdf'), expected);
             assert.deepEqual(normalizeBookMedia('video', '', null), expected);
@@ -319,11 +320,10 @@ describe('normalizeBookMedia', () => {
             );
         });
 
-        it('treats a missing media_url as no presentation yet', () => {
-            assert.deepEqual(
-                normalizeBookMedia('pptx', null, null),
-                { ok: true, content_type: 'pptx', media_url: null, pdf_url: null }
-            );
+        it('requires a presentation file', () => {
+            const expected = { ok: false, error: MEDIA_ERRORS.missingPresentation };
+            assert.deepEqual(normalizeBookMedia('pptx', null, null), expected);
+            assert.deepEqual(normalizeBookMedia('pptx', '', '/uploads/pdfs/pdf-1.pdf'), expected);
         });
 
         it('rejects links and files outside the presentations folder', () => {

@@ -40,7 +40,10 @@ export const MEDIA_ERRORS = {
     invalidMediaUrl: 'Endereço da mídia inválido.',
     mediaUrlTooLong: `O endereço da mídia excede ${MAX_MEDIA_URL_LENGTH} caracteres.`,
     invalidVideo: 'Vídeo inválido. Envie um arquivo de vídeo ou informe um link do YouTube ou Vimeo.',
-    invalidPresentation: 'Apresentação inválida. Envie um arquivo PowerPoint (.pptx ou .ppt).'
+    invalidPresentation: 'Apresentação inválida. Envie um arquivo PowerPoint (.pptx ou .ppt).',
+    missingPdf: 'Anexe o arquivo PDF do livro.',
+    missingVideo: 'Anexe um arquivo de vídeo ou informe um link do YouTube ou Vimeo.',
+    missingPresentation: 'Anexe o arquivo da apresentação (.pptx ou .ppt).'
 } as const;
 
 export type MediaValidationResult =
@@ -111,10 +114,10 @@ function validateMediaUrl(contentType: 'video' | 'pptx', mediaUrl: unknown): Med
         return { ok: false, error: MEDIA_ERRORS.invalidMediaUrl };
     }
 
-    // Media is optional, like pdf_url is for PDF books
+    // Every material must have its file or link attached
     const value = mediaUrl ? mediaUrl.trim() : '';
     if (!value) {
-        return { ok: true, content_type: contentType, media_url: null, pdf_url: null };
+        return { ok: false, error: contentType === 'video' ? MEDIA_ERRORS.missingVideo : MEDIA_ERRORS.missingPresentation };
     }
     if (value.length > MAX_MEDIA_URL_LENGTH) {
         return { ok: false, error: MEDIA_ERRORS.mediaUrlTooLong };
@@ -144,10 +147,13 @@ export function normalizeBookMedia(contentType: unknown, mediaUrl: unknown, pdfU
         if (pdfUrl !== undefined && pdfUrl !== null && typeof pdfUrl !== 'string') {
             return { ok: false, error: MEDIA_ERRORS.invalidPdfUrl };
         }
-        if (pdfUrl && pdfUrl.length > MAX_PDF_URL_LENGTH) {
+        if (!pdfUrl || !pdfUrl.trim()) {
+            return { ok: false, error: MEDIA_ERRORS.missingPdf };
+        }
+        if (pdfUrl.length > MAX_PDF_URL_LENGTH) {
             return { ok: false, error: MEDIA_ERRORS.pdfUrlTooLong };
         }
-        return { ok: true, content_type: 'pdf', media_url: null, pdf_url: pdfUrl ? pdfUrl : null };
+        return { ok: true, content_type: 'pdf', media_url: null, pdf_url: pdfUrl };
     }
 
     return validateMediaUrl(contentType, mediaUrl);
