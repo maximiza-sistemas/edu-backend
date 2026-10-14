@@ -6,14 +6,16 @@ import path from 'path';
 import {
     createUniqueSuffix,
     getMediaUploadDir,
+    MAX_PDF_SIZE_MB,
     MAX_PRESENTATION_SIZE_MB,
     MAX_VIDEO_SIZE_MB,
+    PDF_REJECT_MESSAGE,
     PRESENTATION_REJECT_MESSAGE,
     removeFile,
     removeStaleMediaTempUploads,
     VIDEO_REJECT_MESSAGE
 } from './uploadController.js';
-import { isAllowedPresentationUpload, isAllowedVideoUpload } from '../utils/mediaValidation.js';
+import { isAllowedPdfUpload, isAllowedPresentationUpload, isAllowedVideoUpload } from '../utils/mediaValidation.js';
 import { toTempUploadName } from '../utils/uploadFiles.js';
 import { statusError, UPLOAD_ERRORS } from '../utils/uploadErrors.js';
 import { normalizePresentationFile } from '../utils/presentationPackage.js';
@@ -68,7 +70,8 @@ const CHUNK_RATE_MAX = 1500;
 
 const KIND_RULES: Readonly<Record<UploadKind, KindRules>> = {
     video: { maxSizeMb: MAX_VIDEO_SIZE_MB, isAllowed: isAllowedVideoUpload, rejectMessage: VIDEO_REJECT_MESSAGE },
-    presentation: { maxSizeMb: MAX_PRESENTATION_SIZE_MB, isAllowed: isAllowedPresentationUpload, rejectMessage: PRESENTATION_REJECT_MESSAGE }
+    presentation: { maxSizeMb: MAX_PRESENTATION_SIZE_MB, isAllowed: isAllowedPresentationUpload, rejectMessage: PRESENTATION_REJECT_MESSAGE },
+    pdf: { maxSizeMb: MAX_PDF_SIZE_MB, isAllowed: isAllowedPdfUpload, rejectMessage: PDF_REJECT_MESSAGE }
 };
 
 const sessions = new Map<string, ChunkSession>();

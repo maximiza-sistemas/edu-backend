@@ -10,6 +10,9 @@ export const MAX_PDF_URL_LENGTH = 512;
 export const VIDEO_EXTENSIONS: readonly string[] = ['.mp4', '.webm', '.ogv', '.m4v'];
 export const VIDEO_MIME_TYPES: readonly string[] = ['video/mp4', 'video/webm', 'video/ogg', 'video/x-m4v', 'application/octet-stream'];
 
+export const PDF_EXTENSIONS: readonly string[] = ['.pdf'];
+export const PDF_MIME_TYPES: readonly string[] = ['application/pdf', 'application/x-pdf', 'application/octet-stream'];
+
 export const PRESENTATION_EXTENSIONS: readonly string[] = ['.pptx', '.ppt'];
 // Browsers without Office installed send application/octet-stream for PowerPoint files.
 // A multipart part without a Content-Type header reaches us as text/plain (busboy default) and is rejected.
@@ -103,6 +106,10 @@ export function getFileExtension(filename: string): string {
 
 export function isAllowedVideoUpload(originalName: string, mimetype: string): boolean {
     return VIDEO_EXTENSIONS.includes(getFileExtension(originalName)) && VIDEO_MIME_TYPES.includes(mimetype);
+}
+
+export function isAllowedPdfUpload(originalName: string, mimetype: string): boolean {
+    return PDF_EXTENSIONS.includes(getFileExtension(originalName)) && PDF_MIME_TYPES.includes(mimetype);
 }
 
 export function isAllowedPresentationUpload(originalName: string, mimetype: string): boolean {

@@ -16,12 +16,13 @@ import {
     UploadKind,
     validateInitPayload
 } from './chunkedUploads.js';
-import { isAllowedPresentationUpload, isAllowedVideoUpload } from './mediaValidation.js';
+import { isAllowedPdfUpload, isAllowedPresentationUpload, isAllowedVideoUpload } from './mediaValidation.js';
 
 const MB = 1024 * 1024;
 const RULES: Record<UploadKind, KindRules> = {
     video: { maxSizeMb: 500, isAllowed: isAllowedVideoUpload, rejectMessage: 'video rejected' },
-    presentation: { maxSizeMb: 10, isAllowed: isAllowedPresentationUpload, rejectMessage: 'presentation rejected' }
+    presentation: { maxSizeMb: 10, isAllowed: isAllowedPresentationUpload, rejectMessage: 'presentation rejected' },
+    pdf: { maxSizeMb: 400, isAllowed: isAllowedPdfUpload, rejectMessage: 'pdf rejected' }
 };
 const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const video = (over: Record<string, unknown> = {}) => ({ kind: 'video', filename: 'Aula 1.MP4', size: 10 * MB, mimeType: 'video/mp4', ...over });
@@ -53,7 +54,7 @@ describe('validateInitPayload', () => {
     });
 
     it('rejects unknown kinds and non-object bodies', () => {
-        for (const body of [video({ kind: 'pdf' }), video({ kind: undefined }), null, 'video', []]) {
+        for (const body of [video({ kind: 'audio' }), video({ kind: undefined }), null, 'video', []]) {
             assert.deepEqual(validateInitPayload(body, RULES), { ok: false, status: 400, error: CHUNKED_UPLOAD_ERRORS.invalidKind });
         }
     });
@@ -159,6 +160,7 @@ describe('result and routing helpers', () => {
     it('builds the stored name like the single-request upload', () => {
         assert.equal(buildFinalName('video', '1-2', '.mp4'), 'video-1-2.mp4');
         assert.equal(buildFinalName('presentation', '1-2', '.pptx'), 'presentation-1-2.pptx');
+        assert.equal(buildFinalName('pdf', '1-2', '.pdf'), 'pdf-1-2.pdf');
     });
 
     it('answers with the same JSON as POST /upload/video and /upload/presentation', () => {
@@ -172,6 +174,18 @@ describe('result and routing helpers', () => {
             size: 5,
             presentationUrl: '/uploads/presentations/presentation-1.pptx'
         });
+        assert.deepEqual(buildUploadResult('pdf', 'pdf-1.pdf', 'livro.pdf', 5), {
+            message: 'PDF enviado com sucesso', filename: 'pdf-1.pdf', originalName: 'livro.pdf', size: 5, pdfUrl: '/uploads/pdfs/pdf-1.pdf'
+        });
+    });
+
+    it('accepts PDFs up to their own limit and nothing else as pdf', () => {
+        const pdf = (over: Record<string, unknown>) => ({ kind: 'pdf', filename: 'Livro.PDF', size: 300 * MB, mimeType: 'application/pdf', ...over });
+        assert.deepEqual(validateInitPayload(pdf({}), RULES), {
+            ok: true, value: { kind: 'pdf', originalName: 'Livro.PDF', size: 300 * MB, extension: '.pdf' }
+        });
+        assert.deepEqual(validateInitPayload(pdf({ size: 400 * MB }), RULES), { ok: false, status: 413, error: 'Arquivo excede o limite de 400MB' });
+        assert.deepEqual(validateInitPayload(pdf({ filename: 'livro.pptx' }), RULES), { ok: false, status: 400, error: 'pdf rejected' });
     });
 
     it('recognizes only chunk PUT requests', () => {

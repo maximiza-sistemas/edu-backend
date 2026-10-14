@@ -32,7 +32,9 @@ app.use(cors({
         'https://sistema-livros-maximiza-edu-frontend.gkgtsp.easypanel.host',
         'https://edudigital.maximizaedu.com'
     ],
-    credentials: true
+    credentials: true,
+    // The PDF reader (pdf.js) only loads the pages being read when it can see these range headers
+    exposedHeaders: ['Accept-Ranges', 'Content-Range', 'Content-Length']
 }));
 
 // Parse JSON bodies

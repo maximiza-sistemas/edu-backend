@@ -19,8 +19,8 @@ const DEFAULT_MIME_TYPE = 'application/octet-stream';
 const CHUNK_ROUTE = /^\/api\/upload\/chunked\/[^/]+\/?$/;
 const DIGITS = /^\d+$/;
 
-export type UploadKind = 'video' | 'presentation';
-export const UPLOAD_KINDS: readonly UploadKind[] = ['video', 'presentation'];
+export type UploadKind = 'video' | 'presentation' | 'pdf';
+export const UPLOAD_KINDS: readonly UploadKind[] = ['video', 'presentation', 'pdf'];
 
 export interface KindRules {
     maxSizeMb: number;
@@ -29,7 +29,7 @@ export interface KindRules {
 }
 
 export const CHUNKED_UPLOAD_ERRORS = {
-    invalidKind: 'Tipo de envio inválido. Use video ou presentation.',
+    invalidKind: 'Tipo de envio inválido. Use video, presentation ou pdf.',
     invalidFilename: 'Nome do arquivo inválido.',
     invalidMimeType: 'Tipo do arquivo inválido.',
     invalidSize: 'Tamanho do arquivo inválido.',
@@ -161,10 +161,14 @@ export interface UploadResult {
     size: number;
     videoUrl?: string;
     presentationUrl?: string;
+    pdfUrl?: string;
 }
 
-/** Same JSON the single-request POST /upload/video and /upload/presentation endpoints answer with. */
+/** Same JSON the single-request POST /upload/video, /upload/presentation and /upload/pdf endpoints answer with. */
 export function buildUploadResult(kind: UploadKind, filename: string, originalName: string, size: number): UploadResult {
+    if (kind === 'pdf') {
+        return { message: 'PDF enviado com sucesso', filename, originalName, size, pdfUrl: `/uploads/pdfs/${filename}` };
+    }
     if (kind === 'video') {
         return { message: 'Vídeo enviado com sucesso', filename, originalName, size, videoUrl: `/uploads/videos/${filename}` };
     }

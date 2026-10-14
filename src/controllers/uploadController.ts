@@ -7,12 +7,16 @@ import { getFileExtension, isAllowedPresentationUpload, isAllowedVideoUpload } f
 import { isTempUploadName, resolveManagedMediaFile, toTempUploadName } from '../utils/uploadFiles.js';
 import { statusError, toUploadError, UPLOAD_ERRORS } from '../utils/uploadErrors.js';
 import { normalizePresentationFile } from '../utils/presentationPackage.js';
+import type { UploadKind } from '../utils/chunkedUploads.js';
 
 // Upload size limits (the frontend checks the same values before sending)
+// Images and the legacy single-request PDF route; the admin sends PDFs in chunks (MAX_PDF_SIZE_MB)
 export const MAX_FILE_SIZE_MB = 50;
+export const MAX_PDF_SIZE_MB = 400;
 export const MAX_VIDEO_SIZE_MB = 500;
-// The free Office Online viewer only renders PowerPoint files up to 10MB
-export const MAX_PRESENTATION_SIZE_MB = 10;
+// Larger than the 10MB the Office Online viewer renders; bigger presentations are offered as a download
+export const MAX_PRESENTATION_SIZE_MB = 400;
+export const PDF_REJECT_MESSAGE = 'Formato não suportado. Envie um arquivo PDF.';
 export const VIDEO_REJECT_MESSAGE = 'Formato de vídeo não suportado. Envie um arquivo MP4, WebM, OGV ou M4V.';
 export const PRESENTATION_REJECT_MESSAGE = 'Formato de apresentação não suportado. Envie um arquivo PowerPoint (.pptx ou .ppt).';
 const BYTES_PER_MB = 1024 * 1024;
@@ -216,13 +220,20 @@ async function removeStaleTempUploads(dir: string): Promise<void> {
 export async function removeStaleMediaTempUploads(): Promise<void> {
     await removeStaleTempUploads(videosDir);
     await removeStaleTempUploads(presentationsDir);
+    await removeStaleTempUploads(pdfsDir);
 }
 
 void removeStaleMediaTempUploads();
 
-/** Folder that stores uploaded videos or presentations. */
-export function getMediaUploadDir(kind: 'video' | 'presentation'): string {
-    return kind === 'video' ? videosDir : presentationsDir;
+const UPLOAD_DIRS: Record<UploadKind, string> = {
+    video: videosDir,
+    presentation: presentationsDir,
+    pdf: pdfsDir
+};
+
+/** Folder that stores the files of a chunked upload kind. */
+export function getMediaUploadDir(kind: UploadKind): string {
+    return UPLOAD_DIRS[kind];
 }
 
 // Each media type gets its own multer instance, so file types and size limits never leak between routes

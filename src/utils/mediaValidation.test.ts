@@ -5,6 +5,7 @@ import {
     MAX_PDF_URL_LENGTH,
     MEDIA_ERRORS,
     getFileExtension,
+    isAllowedPdfUpload,
     isAllowedPresentationUpload,
     isAllowedVideoLink,
     isAllowedVideoUpload,
@@ -199,6 +200,14 @@ describe('upload file type checks', () => {
         assert.equal(isAllowedVideoUpload('aula.mp4.html', 'video/mp4'), false);
         assert.equal(isAllowedVideoUpload('aula.mp4', 'text/html'), false);
         assert.equal(isAllowedVideoUpload('aula.mov', 'video/quicktime'), false);
+    });
+
+    it('accepts PDFs with a PDF or generic MIME type', () => {
+        assert.equal(isAllowedPdfUpload('livro.pdf', 'application/pdf'), true);
+        assert.equal(isAllowedPdfUpload('LIVRO.PDF', 'application/octet-stream'), true);
+        assert.equal(isAllowedPdfUpload('livro.pdf', 'text/html'), false);
+        assert.equal(isAllowedPdfUpload('livro.pdf.html', 'application/pdf'), false);
+        assert.equal(isAllowedPdfUpload('livro.pptx', 'application/pdf'), false);
     });
 
     it('accepts presentations with PowerPoint or generic MIME types', () => {
