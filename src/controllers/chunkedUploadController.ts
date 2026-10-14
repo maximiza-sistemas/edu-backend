@@ -16,6 +16,7 @@ import {
 import { isAllowedPresentationUpload, isAllowedVideoUpload } from '../utils/mediaValidation.js';
 import { toTempUploadName } from '../utils/uploadFiles.js';
 import { statusError, UPLOAD_ERRORS } from '../utils/uploadErrors.js';
+import { normalizePresentationFile } from '../utils/presentationPackage.js';
 import {
     buildFinalName,
     buildUploadResult,
@@ -256,14 +257,18 @@ export async function completeChunkedUpload(req: Request, res: Response): Promis
     }
 
     sessions.delete(uploadId);
+    let size = session.size;
     try {
+        if (session.kind === 'presentation') {
+            size = await normalizePresentationFile(session.tempPath);
+        }
         await fs.promises.rename(session.tempPath, path.join(path.dirname(session.tempPath), session.finalName));
     } catch (error) {
         console.error('Erro ao finalizar o upload em partes:', error);
         await removeFile(session.tempPath);
         throw statusError(500, UPLOAD_ERRORS.saveFailed);
     }
-    const result = buildUploadResult(session.kind, session.finalName, session.originalName, session.size);
+    const result = buildUploadResult(session.kind, session.finalName, session.originalName, size);
     completedUploads.set(uploadId, { userId: session.userId, result, completedAt: Date.now() });
     res.json(result);
 }

@@ -6,6 +6,7 @@ import { query } from '../config/database.js';
 import { getFileExtension, isAllowedPresentationUpload, isAllowedVideoUpload } from '../utils/mediaValidation.js';
 import { isTempUploadName, resolveManagedMediaFile, toTempUploadName } from '../utils/uploadFiles.js';
 import { statusError, toUploadError, UPLOAD_ERRORS } from '../utils/uploadErrors.js';
+import { normalizePresentationFile } from '../utils/presentationPackage.js';
 
 // Upload size limits (the frontend checks the same values before sending)
 export const MAX_FILE_SIZE_MB = 50;
@@ -320,6 +321,8 @@ export async function handlePresentationUpload(req: Request, res: Response): Pro
         return;
     }
 
+    // Before it becomes public, so the Office Online viewer only ever sees the normalized package
+    const size = await normalizePresentationFile(req.file.path);
     const filename = await promoteUpload(req, req.file);
     const presentationUrl = `/uploads/presentations/${filename}`;
 
@@ -327,7 +330,7 @@ export async function handlePresentationUpload(req: Request, res: Response): Pro
         message: 'Apresentação enviada com sucesso',
         filename,
         originalName: req.file.originalname,
-        size: req.file.size,
+        size,
         presentationUrl
     });
 }
